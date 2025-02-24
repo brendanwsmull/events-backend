@@ -74,26 +74,28 @@ def create_app(test_config=None):
     def createAccount():
         response = request.get_json()
         
-        username = response['username']
-        password = response['password']
-        isPrivate = response['isPrivate']
-        accountType = response['accountType']
+        username = response.get('username')
+        password = response.get('password')
+        isPrivate = response.get('isPrivate', True)
+        accountType = response.get('accountType')
+
         
         try:
-            conn = connect_to_db
+            conn = connect_to_db()
             cursor = conn.cursor()
             
-            query = "SELECT UUID, FROM users WHERE userName = %s"
-            cursor.execute(query, (username))
+            query = "SELECT UUID FROM users WHERE userName = %s"
+            cursor.execute(query, (username,))
             user = cursor.fetchone()
             
             # Create new user if name is available
             if user:
                 return jsonify({"success": False, "error": "Username already taken"}), 400
             else:
-                query = ("INSERT INTO users (UUID, userName, password, isPrivate, accountType) " +
-                         "VALUES (null, %s, %s, %b, %d)")
+                query = "INSERT INTO users (UUID, userName, password, isPrivate, accountType) VALUES (NULL, %s, %s, %s, %s)"
+
                 cursor.execute(query, (username, password, isPrivate, accountType))
+                conn.commit()
 
                 return jsonify({"success": True, "username": username}), 201
             

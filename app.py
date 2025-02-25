@@ -52,12 +52,17 @@ def create_app(test_config=None):
             conn = connect_to_db()
             cursor = conn.cursor()
 
-            query = "SELECT UUID, accountType FROM users WHERE userName = %s AND password = %s"
+            query = "SELECT UUID, userName, accountType FROM users WHERE userName = %s AND password = %s"
             cursor.execute(query, (username, password))
             user = cursor.fetchone()
 
             if user:
-                return jsonify({"success": True, "uuid": user["UUID"], "accountType": user["accountType"]}), 200
+                return jsonify({
+                    "success": True, 
+                    "uuid": user["UUID"], 
+                    "accountType": user["accountType"], 
+                    "username": user["userName"]
+                }), 200
             else:
                 return jsonify({"success": False, "error": "Invalid username or password"}), 400
 

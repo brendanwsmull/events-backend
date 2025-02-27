@@ -52,7 +52,7 @@ def create_app(test_config=None):
             conn = connect_to_db()
             cursor = conn.cursor()
 
-            query = "SELECT UUID, userName, accountType FROM users WHERE userName = %s AND password = %s"
+            query = "SELECT UUID, userName, accountType, isPrivate FROM users WHERE userName = %s AND password = %s"
             cursor.execute(query, (username, password))
             user = cursor.fetchone()
 
@@ -61,7 +61,8 @@ def create_app(test_config=None):
                     "success": True, 
                     "uuid": user["UUID"], 
                     "accountType": user["accountType"], 
-                    "username": user["userName"]
+                    "username": user["userName"],
+                    "isPrivate": user["isPrivate"]
                 }), 200
             else:
                 return jsonify({"success": False, "error": "Invalid username or password"}), 400
@@ -107,6 +108,26 @@ def create_app(test_config=None):
         except Exception as e:
             return jsonify({"success": False, "error": "Unable to create account"}), 500
         
+        finally:
+            cursor.close()
+            conn.close()
+    
+    @app.route('/setPrivate', methods=['PUT'])
+    def setPrivate():
+        data = request.json
+        uuid = data.get('UUID')
+        bit = data.get('isPrivate')
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            cursor.execute('UPDATE users SET isPrivate = %s WHERE UUID = %s', (bit, uuid))
+
+            conn.commit()
+            return '', 200
+        except Exception as e:
+            return '', 500
         finally:
             cursor.close()
             conn.close()

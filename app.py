@@ -68,7 +68,7 @@ def create_app(test_config=None):
                 return jsonify({"success": False, "error": "Invalid username or password"}), 400
 
         except Exception as e:
-            return jsonify({"success": False, "error": "something failed"}), 500
+            return jsonify({"success": False, "error": "something failed while logging in"}), 500
         
         finally:
             cursor.close()
@@ -85,13 +85,12 @@ def create_app(test_config=None):
         isPrivate = response.get('isPrivate', True)
         accountType = response.get('accountType')
 
-        
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
             
             query = "SELECT UUID FROM users WHERE userName = %s"
-            cursor.execute(query, (username,))
+            cursor.execute(query, (username))
             user = cursor.fetchone()
             
             # Create new user if name is available
@@ -112,6 +111,64 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
     
+    # Route for creating sub-accounts
+    @app.route('/createSubAccount', methods=['POST'])
+    def createSubAccount():
+        response = request.get_json()
+        
+        username = response.get('username')
+        password = response.get('password')
+        isPrivate = response.get('isPrivate', True)
+        accountType = '2'
+        parentAccount = response.get('hostuser')
+        
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            
+            query = "SELECT UUID FROM users WHERE userName = %s"
+            cursor.execute(query, (username))
+            user = cursor.fetchone()
+            
+            # Create new user if name is available
+            if user:
+                return jsonify({"success": False, "error": "Username already taken"}), 400
+            else:
+                query = "INSERT INTO users (UUID, userName, password, isPrivate, accountType, parentAccount) VALUES (NULL, %s, %s, %s, %s, %s)"
+
+                cursor.execute(query, (username, password, isPrivate, accountType, parentAccount))
+                conn.commit()
+
+                return jsonify({"success": True, "username": username}), 201
+            
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Unable to create subAccount"}), 500
+        
+        finally:
+            cursor.close()
+            conn.close()
+
+    # Route for inviting accounts to a group
+    @app.route('/inviteAccount', methods=['POST'])
+    def inviteAccount():
+        return
+
+    # Route for accepting invites from a group
+    @app.route('/acceptInvite', methods=['POST'])
+    def acceptInvite():
+        return
+
+    # Route for joining a group
+    @app.route('/joinGroup', methods=['POST'])
+    def joinGroup():
+        return
+
+    # Route for updating invites
+    @app.route('/updateInvites', methods=['POST'])
+    def updateInvites():
+        return
+
     @app.route('/setPrivate', methods=['PUT'])
     def setPrivate():
         data = request.json

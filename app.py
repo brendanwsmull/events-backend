@@ -152,6 +152,40 @@ def create_app(test_config=None):
     # Route for inviting accounts to a group
     @app.route('/inviteAccount', methods=['POST'])
     def inviteAccount():
+        response = request.get_json()
+
+        userBeingInvited = response.get('invitedUser')
+        groupDoingInviting = response.get('UUID')
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            # Get Username
+            query = "SELECT UUID FROM users WHERE userName = %s"
+            cursor.execute(query, (userBeingInvited))
+            user = cursor.fetchone()['UUID']
+            print(user)
+        
+            if not user:
+                return jsonify({"success": False, "error": "User does not exist"}), 400
+
+            # Create new entry in groups table with pending set to TRUE
+            query = "INSERT INTO userGroups (groupID, userID, pending) VALUES (%s, %s, TRUE)"
+            cursor.execute(query, (groupDoingInviting, user))
+            
+            conn.commit()
+            return jsonify({"success": True, "message": "Invited user"}), 200
+
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Unable to send invite"}), 500
+        
+        finally:
+            cursor.close()
+            conn.close()
+
         return
 
     # Route for accepting invites from a group

@@ -186,22 +186,76 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
-        return
 
     # Route for accepting invites from a group
-    @app.route('/acceptInvite', methods=['POST'])
-    def acceptInvite():
-        return
+    @app.route('/inviteResponse', methods=['POST'])
+    def inviteResponse():
+        response = request.get_json()
+
+        user = response.get('UUID')
+        group = response.get('group')
+        accept = response.get('accept')
+
+        try:
+            conn = connect_to_db
+            cursor = conn.cursor()
+
+            if accept:
+                query = "UPDATE userGroups SET pending = FALSE WHERE userID = %s AND groupID = %s"
+                cursor.execute(query, (user, group))
+                conn.commit()
+                
+                return jsonify({"success": True, "message": "Successfully accepted invite"}), 200
+            
+            else:
+                query = "DELETE FROM userGroups WHERE userID = %s AND groupID = %s"
+                cursor.execute(query, (user, group))
+                conn.commit()
+                
+                return jsonify({"success": True, "message": "Successfully rejected invite"}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Something went wrong trying to accept/deny invite"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+
 
     # Route for joining a group
     @app.route('/joinGroup', methods=['POST'])
     def joinGroup():
         return
 
+
     # Route for updating invites
-    @app.route('/updateInvites', methods=['POST'])
-    def updateInvites():
-        return
+    @app.route('/getInvitedList', methods=['GET'])
+    def getInvitedList():
+        user = request.args.get('UUID')
+        print("Incoming: ", user)
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "SELECT userName FROM users WHERE UUID IN (SELECT groupID FROM userGroups WHERE userID = 1 AND pending = TRUE)"
+            groupNames = cursor.execute(query)
+            groupNames = cursor.fetchall()
+            groupNames = [x["userName"] for x in groupNames]
+
+            print("Groups are: ", groupNames)
+            
+            return jsonify({"success": True, "groups": groupNames}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Something went wrong trying to get the invite list"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+        
 
     @app.route('/setPrivate', methods=['PUT'])
     def setPrivate():

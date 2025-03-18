@@ -187,19 +187,26 @@ def create_app(test_config=None):
             conn.close()
 
 
-    # Route for accepting invites from a group
+    # Route for accepting or rejecting invites from a group
     @app.route('/inviteResponse', methods=['POST'])
     def inviteResponse():
         response = request.get_json()
 
         user = response.get('UUID')
-        group = response.get('group')
-        accept = response.get('accept')
+        groupName = response.get('group')
+        accept = response.get('accept') 
+        print(" User: %s\n Group: %s\n Accept: %s" % (user, groupName, accept))
 
         try:
-            conn = connect_to_db
+            conn = connect_to_db()
             cursor = conn.cursor()
 
+            # Get UUID from userName
+            query = "SELECT UUID FROM users WHERE userName = %s"
+            cursor.execute(query, groupName)
+            group = cursor.fetchone()["UUID"]
+            print(group)
+            
             if accept:
                 query = "UPDATE userGroups SET pending = FALSE WHERE userID = %s AND groupID = %s"
                 cursor.execute(query, (user, group))

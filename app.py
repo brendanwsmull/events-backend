@@ -135,7 +135,6 @@ def create_app(test_config=None):
                 return jsonify({"success": False, "error": "Username already taken"}), 400
             else:
                 query = "INSERT INTO users (UUID, userName, password, isPrivate, accountType, parentAccount) VALUES (NULL, %s, %s, %s, %s, %s)"
-                print(parentAccount)
                 cursor.execute(query, (username, password, isPrivate, accountType, parentAccount))
                 conn.commit()
 
@@ -165,7 +164,6 @@ def create_app(test_config=None):
             query = "SELECT UUID FROM users WHERE userName = %s"
             cursor.execute(query, (userBeingInvited))
             user = cursor.fetchone()['UUID']
-            print(user)
         
             if not user:
                 return jsonify({"success": False, "error": "User does not exist"}), 400
@@ -195,7 +193,6 @@ def create_app(test_config=None):
         user = response.get('UUID')
         groupName = response.get('group')
         accept = response.get('accept') 
-        print(" User: %s\n Group: %s\n Accept: %s" % (user, groupName, accept))
 
         try:
             conn = connect_to_db()
@@ -205,7 +202,6 @@ def create_app(test_config=None):
             query = "SELECT UUID FROM users WHERE userName = %s"
             cursor.execute(query, groupName)
             group = cursor.fetchone()["UUID"]
-            print(group)
             
             if accept:
                 query = "UPDATE userGroups SET pending = FALSE WHERE userID = %s AND groupID = %s"
@@ -231,8 +227,40 @@ def create_app(test_config=None):
 
 
     # Route for joining a group
-    @app.route('/joinGroup', methods=['POST'])
-    def joinGroup():
+    @app.route('/sendJoinRequest', methods=['POST'])
+    def sendJoinRequest():
+        response = request.get_json()
+
+        userID = response.get("UUID")
+        groupToJoin = response.get("joining")
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            # Get group info and check if it exists
+            query = "SELECT isPrivate, UUID FROM users WHERE userName = %s"
+            cursor.execute(query, groupToJoin)
+            groupInfo = cursor.fetchone()
+            if groupInfo is None:
+                return jsonify({"success": False, "error": "Entered account name does not exits"}), 400
+            
+            # Check if account is private
+            isPrivate = groupInfo["isPrivate"]
+            if isPrivate:
+                return jsonify({"success": False, "error": str(groupToJoin) + " is not a public group" }), 403
+            
+            cursor.callproc("addUserToGroup", (userID, groupInfo["UUID"]))
+            return jsonify({"success": True}), 200
+        
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Something went wrong trying to join a group"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+        
         return
 
 
@@ -250,8 +278,6 @@ def create_app(test_config=None):
             groupNames = cursor.execute(query)
             groupNames = cursor.fetchall()
             groupNames = [x["userName"] for x in groupNames]
-
-            print("Groups are: ", groupNames)
             
             return jsonify({"success": True, "groups": groupNames}), 200
 

@@ -305,4 +305,42 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
+    @app.route('/getCurrentGroups', methods=['GET'])
+    def getCurrentGroups():
+        uuid = request.args.get('UUID')
+
+        if not uuid:
+            return jsonify({"success": False, "error": "Missing UUID"}), 400
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = """
+                SELECT userName
+                FROM users
+                WHERE UUID IN (
+                    SELECT groupID
+                    FROM userGroups
+                    WHERE userID = %s AND pending = FALSE
+                )
+            """
+            cursor.execute(query, (uuid,))
+            rows = cursor.fetchall()
+
+            for row in rows:
+                group_string += row["userName"] + ", "
+            if group_string.endswith(", "):
+                group_string = group_string[:-2]
+
+            return jsonify({"success": True, "groups": group_string}), 200
+
+        except Exception as e:
+            print("Error:", e)
+            return jsonify({"success": False, "error": "Failed to get groups"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+
     return app

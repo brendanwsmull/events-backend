@@ -37,11 +37,6 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    # a simple page that says hello
-    @app.route('/hello')
-    def hello():
-        return 'Hello, World!'
-
     # the login route for testing login details
     @app.route('/login', methods=['GET'])
     def login():
@@ -239,7 +234,7 @@ def create_app(test_config=None):
             cursor = conn.cursor()
 
             # Get group info and check if it exists
-            query = "SELECT isPrivate, UUID FROM users WHERE userName = %s"
+            query = "SELECT isPrivate, UUID FROM users WHERE userName = %s AND accountType != 1"
             cursor.execute(query, groupToJoin)
             groupInfo = cursor.fetchone()
             if groupInfo is None:
@@ -274,8 +269,8 @@ def create_app(test_config=None):
             conn = connect_to_db()
             cursor = conn.cursor()
 
-            query = "SELECT userName FROM users WHERE UUID IN (SELECT groupID FROM userGroups WHERE userID = 1 AND pending = TRUE)"
-            groupNames = cursor.execute(query)
+            query = "SELECT userName FROM users WHERE UUID IN (SELECT groupID FROM userGroups WHERE userID = %s AND pending = TRUE)"
+            groupNames = cursor.execute(query, (user))
             groupNames = cursor.fetchall()
             groupNames = [x["userName"] for x in groupNames]
             

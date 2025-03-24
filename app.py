@@ -92,7 +92,7 @@ def create_app(test_config=None):
             if user:
                 return jsonify({"success": False, "error": "Username already taken"}), 400
             else:
-                query = "INSERT INTO users (UUID, userName, password, isPrivate, accountType) VALUES (NULL, %s, %s, %s, %s)"
+                query = "CALL createAccount(%s, %s, %s, %s)"
 
                 cursor.execute(query, (username, password, isPrivate, accountType))
                 conn.commit()

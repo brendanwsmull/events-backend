@@ -245,7 +245,10 @@ def create_app(test_config=None):
             if isPrivate:
                 return jsonify({"success": False, "error": str(groupToJoin) + " is not a public group" }), 403
             
-            cursor.callproc("addUserToGroup", (userID, groupInfo["UUID"]))
+            query = "CALL addUserToGroup(%s, %s)"
+            cursor.execute(query, (userID, groupInfo["UUID"]))
+            print("UserID: %s\nGroupID: ",(userID, groupInfo["UUID"]))
+            conn.commit()
             return jsonify({"success": True}), 200
         
         except Exception as e:
@@ -255,9 +258,6 @@ def create_app(test_config=None):
         finally:
             cursor.close()
             conn.close()
-        
-        return
-
 
     # Route for updating invites
     @app.route('/getInvitedList', methods=['GET'])

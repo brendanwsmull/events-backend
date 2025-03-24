@@ -263,7 +263,6 @@ def create_app(test_config=None):
     @app.route('/getInvitedList', methods=['GET'])
     def getInvitedList():
         user = request.args.get('UUID')
-        print("Incoming: ", user)
 
         try:
             conn = connect_to_db()
@@ -328,6 +327,7 @@ def create_app(test_config=None):
             cursor.execute(query, (uuid,))
             rows = cursor.fetchall()
 
+            group_string = ""
             for row in rows:
                 group_string += row["userName"] + ", "
             if group_string.endswith(", "):

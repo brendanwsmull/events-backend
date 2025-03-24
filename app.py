@@ -190,12 +190,17 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
-    @app.route('/geocode_test', methods=['GET'])
-    def geocode():
+    @app.route('/createEvent', methods=['POST'])
+    def createEvent():
         load_dotenv()
-        address = request.args.get('address')
-        if not address:
-            return jsonify({'error': 'Missing address parameter'}), 400
+        response = request.get_json()
+        UUID = response.get('UUID')
+        eventName = response.get('eventName')
+        address = response.get('address')
+        desc = response.get('desc')
+        cap = response.get('cap')
+        tags = response.get('tags')
+        date = response.get('date')
 
         url = 'https://maps.googleapis.com/maps/api/geocode/json'
         params = {
@@ -209,10 +214,18 @@ def create_app(test_config=None):
             return jsonify({'error': 'Geocoding failed', 'details': data.get('status')}), 500
 
         location = data['results'][0]['geometry']['location']
-        return jsonify({
-            'address': address,
-            'latitude': location['lat'],
-            'longitude': location['lng']
-        })
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            query = "insert into events values (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            cursor.execute(query, (UUID, eventName, date, address, location['lat'], location['lng'], desc, tags, cap))
+            conn.commit()
+            return jsonify({"success": True}), 200
+        except Exception as e:
+            return '', 500
+        finally:
+            cursor.close()
+            conn.close()
 
     return app

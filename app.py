@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pymysql
+import requests
 from dotenv import load_dotenv, dotenv_values
 
 def connect_to_db():
@@ -188,5 +189,30 @@ def create_app(test_config=None):
         finally:
             cursor.close()
             conn.close()
+
+    @app.route('/geocode_test', methods=['GET'])
+    def geocode():
+        load_dotenv()
+        address = request.args.get('address')
+        if not address:
+            return jsonify({'error': 'Missing address parameter'}), 400
+
+        url = 'https://maps.googleapis.com/maps/api/geocode/json'
+        params = {
+            'address': address,
+            'key': os.getenv("geo_coding_key")
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        if data['status'] != 'OK':
+            return jsonify({'error': 'Geocoding failed', 'details': data.get('status')}), 500
+
+        location = data['results'][0]['geometry']['location']
+        return jsonify({
+            'address': address,
+            'latitude': location['lat'],
+            'longitude': location['lng']
+        })
 
     return app

@@ -223,7 +223,40 @@ def create_app(test_config=None):
             conn.commit()
             return jsonify({"success": True}), 200
         except Exception as e:
-            return '', 500
+            print(e)
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
+    
+    @app.route("/getUserEvents", methods=['GET'])
+    def getUserEvents():
+        UUID = request.args.get('UUID')
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            # TODO get list of events user is hosting
+            hostedQ = "SELECT * FROM events WHERE eventHost = %s AND date >= NOW()"
+            cursor.execute(hostedQ, (UUID,))
+            hostingEvents = cursor.fetchall()
+            # TODO get list of events user is signed up for
+            attendingQ = """
+                    SELECT e.*, u.userName AS hostName FROM events e
+                    JOIN users u on e.eventHost = u.UUID WHERE UEID IN (
+                    SELECT UEID FROM signedUp WHERE UUID = %s
+                    )
+                    AND e.eventHost != %s
+                    AND e.date >= NOW()
+                """
+            cursor.execute(attendingQ, (UUID, UUID))
+            attendingEvents = cursor.fetchall()
+            return jsonify({
+                "hostingEvents": hostingEvents,
+                "attendingEvents": attendingEvents
+            }), 200
+        except Exception as e:
+            print(e)
+            return jsonify({'error': str(e)}), 500
         finally:
             cursor.close()
             conn.close()

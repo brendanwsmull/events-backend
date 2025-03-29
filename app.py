@@ -368,11 +368,20 @@ def create_app(test_config=None):
 
     @app.route('/getPrefs', methods=['GET'])
     def getPrefs():
+        uuid = request.args.get('UUID')
+        print("UUID = ", uuid)
+        
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
 
-            
+            query = "SELECT prefs FROM prefs WHERE UUID = %s"
+            cursor.execute(query, (uuid))
+            data = cursor.fetchall()
+            print(data)
+
+            return jsonify({"success": True, "prefs":data[0]["prefs"]})
+
         except Exception as e:
             print(e)
             return jsonify({"success": False, "error": "Failed to get preferences"}), 500

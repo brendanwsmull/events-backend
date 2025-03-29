@@ -412,10 +412,16 @@ def create_app(test_config=None):
 
     @app.route('/getDistance', methods=['GET'])
     def getDistance():
+        uuid = request.args.get("UUID")
+        
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
 
+            query = "SELECT dist FROM prefs WHERE UUID = %s"
+            cursor.execute(query, (uuid))
+            dist = cursor.fetchall()
+            return jsonify({"success": True, "distance": dist[0]["dist"]}), 200
             
         except Exception as e:
             print(e)

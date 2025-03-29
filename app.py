@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pymysql
+import requests
 from dotenv import load_dotenv, dotenv_values
 
 def connect_to_db():
@@ -304,6 +305,43 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
+
+    @app.route('/createEvent', methods=['POST'])
+    def createEvent():
+        load_dotenv()
+        response = request.get_json()
+        UUID = response.get('UUID')
+        eventName = response.get('eventName')
+        address = response.get('address')
+        desc = response.get('desc')
+        cap = response.get('cap')
+        tags = response.get('tags')
+        date = response.get('date')
+
+        url = 'https://maps.googleapis.com/maps/api/geocode/json'
+        params = {
+            'address': address,
+            'key': os.getenv("geo_coding_key")
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        if data['status'] != 'OK':
+            return jsonify({'error': 'Geocoding failed', 'details': data.get('status')}), 500
+
+        location = data['results'][0]['geometry']['location']
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            query = "insert into events values (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            cursor.execute(query, (UUID, eventName, date, address, location['lat'], location['lng'], desc, tags, cap))
+            conn.commit()
+            return jsonify({"success": True}), 200
+        except Exception as e:
+            print(e)
+            return jsonify({"error": str(e)}), 500
+
     @app.route('/getCurrentGroups', methods=['GET'])
     def getCurrentGroups():
         uuid = request.args.get('UUID')
@@ -387,6 +425,37 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
     
+    @app.route("/getUserEvents", methods=['GET'])
+    def getUserEvents():
+        UUID = request.args.get('UUID')
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            # TODO get list of events user is hosting
+            hostedQ = "SELECT * FROM events WHERE eventHost = %s AND date >= NOW()"
+            cursor.execute(hostedQ, (UUID,))
+            hostingEvents = cursor.fetchall()
+            # TODO get list of events user is signed up for
+            attendingQ = """
+                    SELECT e.*, u.userName AS hostName FROM events e
+                    JOIN users u on e.eventHost = u.UUID WHERE UEID IN (
+                    SELECT UEID FROM signedUp WHERE UUID = %s
+                    )
+                    AND e.eventHost != %s
+                    AND e.date >= NOW()
+                """
+            cursor.execute(attendingQ, (UUID, UUID))
+            attendingEvents = cursor.fetchall()
+            return jsonify({
+                "hostingEvents": hostingEvents,
+                "attendingEvents": attendingEvents
+            }), 200
+        except Exception as e:
+            print(e)
+            return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
     
     @app.route('/updateDistance', methods=['POST'])
     def updateDistance():

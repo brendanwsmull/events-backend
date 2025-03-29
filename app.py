@@ -98,8 +98,11 @@ def create_app(test_config=None):
         
         username = response.get('username')
         password = response.get('password')
-        isPrivate = response.get('isPrivate', True)
         accountType = response.get('accountType')
+        if (accountType == 1):
+            isPrivate = False
+        else:
+            isPrivate = True
 
         try:
             conn = connect_to_db()

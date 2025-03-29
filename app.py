@@ -336,7 +336,7 @@ def create_app(test_config=None):
             return jsonify({"success": True, "groups": group_string}), 200
 
         except Exception as e:
-            print("Error:", e)
+            print("Error: ", e)
             return jsonify({"success": False, "error": "Failed to get groups"}), 500
 
         finally:
@@ -369,7 +369,6 @@ def create_app(test_config=None):
     @app.route('/getPrefs', methods=['GET'])
     def getPrefs():
         uuid = request.args.get('UUID')
-        print("UUID = ", uuid)
         
         try:
             conn = connect_to_db()
@@ -378,9 +377,8 @@ def create_app(test_config=None):
             query = "SELECT prefs FROM prefs WHERE UUID = %s"
             cursor.execute(query, (uuid))
             data = cursor.fetchall()
-            print(data)
 
-            return jsonify({"success": True, "prefs":data[0]["prefs"]})
+            return jsonify({"success": True, "prefs":data[0]["prefs"]}), 200
 
         except Exception as e:
             print(e)
@@ -392,10 +390,17 @@ def create_app(test_config=None):
     
     @app.route('/updateDistance', methods=['POST'])
     def updateDistance():
+        data = request.get_json()
+        uuid = data.get("UUID")
+        dist = data.get("dist")
+
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
 
+            query = "CALL updateDistance(%s, %s)"
+            cursor.execute(query, (uuid, dist))
+            return jsonify({"success": True, "dist": dist}), 200
             
         except Exception as e:
             print(e)

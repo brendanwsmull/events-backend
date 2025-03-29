@@ -38,11 +38,6 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    # a simple page that says hello
-    @app.route('/hello')
-    def hello():
-        return 'Hello, World!'
-
     # the login route for testing login details
     @app.route('/login', methods=['GET'])
     def login():
@@ -98,7 +93,7 @@ def create_app(test_config=None):
             if user:
                 return jsonify({"success": False, "error": "Username already taken"}), 400
             else:
-                query = "INSERT INTO users (UUID, userName, password, isPrivate, accountType) VALUES (NULL, %s, %s, %s, %s)"
+                query = "CALL createAccount(%s, %s, %s, %s)"
 
                 cursor.execute(query, (username, password, isPrivate, accountType))
                 conn.commit()
@@ -136,7 +131,6 @@ def create_app(test_config=None):
                 return jsonify({"success": False, "error": "Username already taken"}), 400
             else:
                 query = "INSERT INTO users (UUID, userName, password, isPrivate, accountType, parentAccount) VALUES (NULL, %s, %s, %s, %s, %s)"
-                print(parentAccount)
                 cursor.execute(query, (username, password, isPrivate, accountType, parentAccount))
                 conn.commit()
 
@@ -153,22 +147,143 @@ def create_app(test_config=None):
     # Route for inviting accounts to a group
     @app.route('/inviteAccount', methods=['POST'])
     def inviteAccount():
-        return
+        response = request.get_json()
 
-    # Route for accepting invites from a group
-    @app.route('/acceptInvite', methods=['POST'])
-    def acceptInvite():
-        return
+        userBeingInvited = response.get('invitedUser')
+        groupDoingInviting = response.get('UUID')
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            # Get Username
+            query = "SELECT UUID FROM users WHERE userName = %s"
+            cursor.execute(query, (userBeingInvited))
+            user = cursor.fetchone()['UUID']
+        
+            if not user:
+                return jsonify({"success": False, "error": "User does not exist"}), 400
+
+            # Create new entry in groups table with pending set to TRUE
+            query = "INSERT INTO userGroups (groupID, userID, pending) VALUES (%s, %s, TRUE)"
+            cursor.execute(query, (groupDoingInviting, user))
+            
+            conn.commit()
+            return jsonify({"success": True, "message": "Invited user"}), 200
+
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Unable to send invite"}), 500
+        
+        finally:
+            cursor.close()
+            conn.close()
+
+
+    # Route for accepting or rejecting invites from a group
+    @app.route('/inviteResponse', methods=['POST'])
+    def inviteResponse():
+        response = request.get_json()
+
+        user = response.get('UUID')
+        groupName = response.get('group')
+        accept = response.get('accept') 
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            # Get UUID from userName
+            query = "SELECT UUID FROM users WHERE userName = %s"
+            cursor.execute(query, groupName)
+            group = cursor.fetchone()["UUID"]
+            
+            if accept:
+                query = "UPDATE userGroups SET pending = FALSE WHERE userID = %s AND groupID = %s"
+                cursor.execute(query, (user, group))
+                conn.commit()
+                
+                return jsonify({"success": True, "message": "Successfully accepted invite"}), 200
+            
+            else:
+                query = "DELETE FROM userGroups WHERE userID = %s AND groupID = %s"
+                cursor.execute(query, (user, group))
+                conn.commit()
+                
+                return jsonify({"success": True, "message": "Successfully rejected invite"}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Something went wrong trying to accept/deny invite"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+
 
     # Route for joining a group
-    @app.route('/joinGroup', methods=['POST'])
-    def joinGroup():
-        return
+    @app.route('/sendJoinRequest', methods=['POST'])
+    def sendJoinRequest():
+        response = request.get_json()
+
+        userID = response.get("UUID")
+        groupToJoin = response.get("joining")
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            # Get group info and check if it exists
+            query = "SELECT isPrivate, UUID FROM users WHERE userName = %s AND accountType != 1"
+            cursor.execute(query, groupToJoin)
+            groupInfo = cursor.fetchone()
+            if groupInfo is None:
+                return jsonify({"success": False, "error": "Entered account name does not exits"}), 400
+            
+            # Check if account is private
+            isPrivate = groupInfo["isPrivate"]
+            if isPrivate:
+                return jsonify({"success": False, "error": str(groupToJoin) + " is not a public group" }), 403
+            
+            query = "CALL addUserToGroup(%s, %s)"
+            cursor.execute(query, (userID, groupInfo["UUID"]))
+            print("UserID: %s\nGroupID: ",(userID, groupInfo["UUID"]))
+            conn.commit()
+            return jsonify({"success": True}), 200
+        
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Something went wrong trying to join a group"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
 
     # Route for updating invites
-    @app.route('/updateInvites', methods=['POST'])
-    def updateInvites():
-        return
+    @app.route('/getInvitedList', methods=['GET'])
+    def getInvitedList():
+        user = request.args.get('UUID')
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "SELECT userName FROM users WHERE UUID IN (SELECT groupID FROM userGroups WHERE userID = %s AND pending = TRUE)"
+            groupNames = cursor.execute(query, (user))
+            groupNames = cursor.fetchall()
+            groupNames = [x["userName"] for x in groupNames]
+            
+            return jsonify({"success": True, "groups": groupNames}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Something went wrong trying to get the invite list"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+        
 
     @app.route('/setPrivate', methods=['PUT'])
     def setPrivate():
@@ -189,6 +304,7 @@ def create_app(test_config=None):
         finally:
             cursor.close()
             conn.close()
+
 
     @app.route('/createEvent', methods=['POST'])
     def createEvent():
@@ -225,6 +341,86 @@ def create_app(test_config=None):
         except Exception as e:
             print(e)
             return jsonify({"error": str(e)}), 500
+
+    @app.route('/getCurrentGroups', methods=['GET'])
+    def getCurrentGroups():
+        uuid = request.args.get('UUID')
+
+        if not uuid:
+            return jsonify({"success": False, "error": "Missing UUID"}), 400
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = """
+                SELECT userName
+                FROM users
+                WHERE UUID IN (
+                    SELECT groupID
+                    FROM userGroups
+                    WHERE userID = %s AND pending = FALSE
+                )
+            """
+            cursor.execute(query, (uuid,))
+            rows = cursor.fetchall()
+
+            group_string = ""
+            for row in rows:
+                group_string += row["userName"] + ", "
+            if group_string.endswith(", "):
+                group_string = group_string[:-2]
+
+            return jsonify({"success": True, "groups": group_string}), 200
+
+        except Exception as e:
+            print("Error: ", e)
+            return jsonify({"success": False, "error": "Failed to get groups"}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+    
+    @app.route('/updatePreferences', methods=['POST'])
+    def updatePreferences():
+        data = request.get_json()
+        uuid = data.get("UUID")
+        prefs = data.get("pref")
+        
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "CALL updatePreferences(%s, %s)"
+            cursor.execute(query, (uuid, prefs))
+
+            return jsonify({"success": True, "prefs": prefs}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to update preferences"}), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+
+    @app.route('/getPrefs', methods=['GET'])
+    def getPrefs():
+        uuid = request.args.get('UUID')
+        
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "SELECT prefs FROM prefs WHERE UUID = %s"
+            cursor.execute(query, (uuid))
+            data = cursor.fetchall()
+
+            return jsonify({"success": True, "prefs":data[0]["prefs"]}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to get preferences"}), 500
         finally:
             cursor.close()
             conn.close()
@@ -257,6 +453,48 @@ def create_app(test_config=None):
         except Exception as e:
             print(e)
             return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
+    
+    @app.route('/updateDistance', methods=['POST'])
+    def updateDistance():
+        data = request.get_json()
+        uuid = data.get("UUID")
+        dist = data.get("dist")
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "CALL updateDistance(%s, %s)"
+            cursor.execute(query, (uuid, dist))
+            return jsonify({"success": True, "dist": dist}), 200
+            
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to update preferred distance"}), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+
+    @app.route('/getDistance', methods=['GET'])
+    def getDistance():
+        uuid = request.args.get("UUID")
+        
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "SELECT dist FROM prefs WHERE UUID = %s"
+            cursor.execute(query, (uuid))
+            dist = cursor.fetchall()
+            return jsonify({"success": True, "distance": dist[0]["dist"]}), 200
+            
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to update preferences"}), 500
         finally:
             cursor.close()
             conn.close()

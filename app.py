@@ -541,8 +541,8 @@ def create_app(test_config=None):
     @app.route('/getEventFeed', methods=["GET"])
     def getEventFeed():
         UUID = request.args.get("UUID")
-        long = request.args.get("long")
-        lat = request.args.get("lat")
+        long = float(request.args.get("long"))
+        lat = float(request.args.get("lat"))
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
@@ -560,9 +560,16 @@ def create_app(test_config=None):
             """
             cursor.execute(groupQ, (UUID,))
             groupEvents = cursor.fetchall()
-        # TODO: Get list of public events
+        # TODO: Get list of public events within distance
+            publicQ = "CALL findEvents(%s, %s, %s)"
+            print("%d, %d", (hashC(long), hashC(lat)))
+            cursor.execute(publicQ, (UUID, hashC(lat), hashC(long)))
+            while cursor.nextset():
+                pass
+            publicEvents = cursor.fetchall()
             return jsonify({
-                "groupEvents": groupEvents
+                "groupEvents": groupEvents,
+                "eventFeed": publicEvents
             }), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500

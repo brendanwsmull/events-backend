@@ -7,6 +7,7 @@ import math
 from dotenv import load_dotenv, dotenv_values
 
 def get_distance(lat1, long1, lat2, long2):
+    # this was pulled from here: https://stackoverflow.com/questions/4913349/haversine-formula-in-python-bearing-and-distance-between-two-gps-points 
     # converting degrees to radians
     r = 3956 # earth radius
     lat1 = math.radians(lat1)

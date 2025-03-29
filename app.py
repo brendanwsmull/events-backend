@@ -342,5 +342,72 @@ def create_app(test_config=None):
         finally:
             cursor.close()
             conn.close()
+    
+    @app.route('/updatePreferences', methods=['POST'])
+    def updatePreferences():
+        data = request.get_json()
+        uuid = data.get("UUID")
+        prefs = data.get("pref")
+        
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            query = "CALL updatePreferences(%s, %s)"
+            cursor.execute(query, (uuid, prefs))
+
+            return jsonify({"success": True, "prefs": prefs}), 200
+
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to update preferences"}), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+
+    @app.route('/getPrefs', methods=['GET'])
+    def getPrefs():
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to get preferences"}), 500
+        finally:
+            cursor.close()
+            conn.close()
+    
+    
+    @app.route('/updateDistance', methods=['POST'])
+    def updateDistance():
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to update preferred distance"}), 500
+        finally:
+            cursor.close()
+            conn.close()
+
+
+    @app.route('/getDistance', methods=['GET'])
+    def getDistance():
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            
+        except Exception as e:
+            print(e)
+            return jsonify({"success": False, "error": "Failed to update preferences"}), 500
+        finally:
+            cursor.close()
+            conn.close()
 
     return app

@@ -540,8 +540,34 @@ def create_app(test_config=None):
     
     @app.route('/getEventFeed', methods=["GET"])
     def getEventFeed():
+        UUID = request.args.get("UUID")
+        long = request.args.get("long")
+        lat = request.args.get("lat")
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
         # TODO: Get list of events from groups they are apart of
+            groupQ = """
+                SELECT e.*, u.userName AS hostName
+                FROM events e
+                JOIN users u ON e.eventHost = u.UUID
+                WHERE e.eventHost IN (
+                    SELECT groupID
+                    FROM userGroups
+                    WHERE userID = %s AND pending = FALSE
+                )
+                AND e.date >= NOW()
+            """
+            cursor.execute(groupQ, (UUID,))
+            groupEvents = cursor.fetchall()
         # TODO: Get list of public events
-        return
+            return jsonify({
+                "groupEvents": groupEvents
+            }), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
 
     return app

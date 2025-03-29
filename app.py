@@ -22,6 +22,9 @@ def get_distance(lat1, long1, lat2, long2):
     c = 2 * math.asin(math.sqrt(a))
     return r * c
 
+def hashC(coord):
+    return int(coord * 10)
+
 def connect_to_db():
     # the pymysql connector
     load_dotenv()
@@ -351,7 +354,10 @@ def create_app(test_config=None):
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
-            query = "insert into events values (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            query = """
+                INSERT INTO events VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                (SELECT isPrivate FROM users WHERE UUID = %s))
+                """
             cursor.execute(query, (
                 UUID, 
                 eventName, 
@@ -362,8 +368,9 @@ def create_app(test_config=None):
                 desc, 
                 tags, 
                 cap,
-                int(location['lat']*10),
-                int(location['lng']*10)
+                hashC(location['lat']),
+                hashC(location['lng']),
+                UUID
                 ))
             conn.commit()
             return jsonify({"success": True}), 200
@@ -527,5 +534,11 @@ def create_app(test_config=None):
         finally:
             cursor.close()
             conn.close()
+    
+    @app.route('/getEventFeed', methods=["GET"])
+    def getEventFeed():
+        # TODO: Get list of events from groups they are apart of
+        # TODO: Get list of public events
+        return
 
     return app

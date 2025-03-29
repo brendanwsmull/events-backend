@@ -3,7 +3,23 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pymysql
 import requests
+import math
 from dotenv import load_dotenv, dotenv_values
+
+def get_distance(lat1, long1, lat2, long2):
+    # converting degrees to radians
+    r = 3956 # earth radius
+    lat1 = math.radians(lat1)
+    long1 = math.radians(long1)
+    lat2 = math.radians(lat2)
+    long2 = math.radians(long2)
+    # get differences
+    dlat = lat2 - lat1
+    dlong = long2 - long1
+    # Havernsine Formula
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlong / 2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    return r * c
 
 def connect_to_db():
     # the pymysql connector
@@ -334,8 +350,20 @@ def create_app(test_config=None):
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
-            query = "insert into events values (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            cursor.execute(query, (UUID, eventName, date, address, location['lat'], location['lng'], desc, tags, cap))
+            query = "insert into events values (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            cursor.execute(query, (
+                UUID, 
+                eventName, 
+                date, 
+                address, 
+                round(location['lat'], 3), 
+                round(location['lng'], 3), 
+                desc, 
+                tags, 
+                cap,
+                int(location['lat']*10),
+                int(location['lng']*10)
+                ))
             conn.commit()
             return jsonify({"success": True}), 200
         except Exception as e:

@@ -538,6 +538,7 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
     
+
     @app.route('/getEventFeed', methods=["GET"])
     def getEventFeed():
         UUID = request.args.get("UUID")
@@ -546,7 +547,8 @@ def create_app(test_config=None):
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
-        # TODO: Get list of events from groups they are apart of
+
+            # Get list of events from groups they are apart of
             groupQ = """
                 SELECT e.*, u.userName AS hostName
                 FROM events e
@@ -560,16 +562,34 @@ def create_app(test_config=None):
             """
             cursor.execute(groupQ, (UUID,))
             groupEvents = cursor.fetchall()
-        # TODO: Get list of public events within distance
+
+            # Get list of public events within distance
             publicQ = "CALL findEvents(%s, %s, %s)"
-            print("%d, %d", (hashC(long), hashC(lat)))
             cursor.execute(publicQ, (UUID, hashC(lat), hashC(long)))
             publicEvents = cursor.fetchall()
+            publicEvents = publicEvents
             while cursor.nextset():
                 pass
+            
+            # Filter feed for events that share tags
+            query = "SELECT prefs FROM prefs WHERE UUID = %s"
+            cursor.execute(query, UUID)
+            prefs = cursor.fetchall()
+            prefs = prefs[0]["prefs"].lower().split()
+            print("Prefs: ", prefs)
+
+            # Count the number of shared tags
+            matching = []
+            for event in publicEvents:
+                event["tags"] = event["tags"].lower()
+                for p in prefs:
+                    if p in event["tags"]:
+                        matching.append(event)
+                        break
+
             return jsonify({
                 "groupEvents": groupEvents,
-                "eventFeed": publicEvents
+                "eventFeed": matching
             }), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500

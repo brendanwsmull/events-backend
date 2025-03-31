@@ -564,9 +564,9 @@ def create_app(test_config=None):
             publicQ = "CALL findEvents(%s, %s, %s)"
             print("%d, %d", (hashC(long), hashC(lat)))
             cursor.execute(publicQ, (UUID, hashC(lat), hashC(long)))
+            publicEvents = cursor.fetchall()
             while cursor.nextset():
                 pass
-            publicEvents = cursor.fetchall()
             return jsonify({
                 "groupEvents": groupEvents,
                 "eventFeed": publicEvents

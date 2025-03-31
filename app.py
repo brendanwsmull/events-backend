@@ -597,4 +597,39 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
+    @app.route('/deleteEvent', methods=["GET"])
+    def deleteEvent():
+        UEID = request.args.get("UEID")
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            deleteQSignedUp = "DELETE FROM signedUp WHERE UEID = %s"
+            cursor.execute(deleteQSignedUp, (UEID,))
+            deleteQEvents = "DELETE FROM events WHERE UEID = %s"
+            cursor.execute (deleteQEvents, (UEID,))
+            conn.commit()
+            return jsonify({"status": "all good :3"}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
+    
+    @app.route('/unSignUpEvent', methods=["GET"])
+    def unSignUpEvent():
+        UEID = request.args.get("UEID")
+        UUID = request.args.get("UUID")
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            deleteQSignedUp = "DELETE FROM signedUp WHERE UUID = %s and UEID = %s"
+            cursor.execute(deleteQSignedUp, (UUID, UEID))
+            conn.commit()
+            return jsonify({"status": "all good :3"}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        finally:
+            cursor.close()
+            conn.close()
+
     return app

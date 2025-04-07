@@ -560,7 +560,7 @@ def create_app(test_config=None):
                 )
                 AND e.date >= NOW()
             """
-            cursor.execute(groupQ, (UUID,))
+            cursor.execute(groupQ, (UUID))
             groupEvents = cursor.fetchall()
 
             # Get list of public events within distance
@@ -573,19 +573,23 @@ def create_app(test_config=None):
             
             # Filter feed for events that share tags
             query = "SELECT prefs FROM prefs WHERE UUID = %s"
-            cursor.execute(query, UUID)
+            cursor.execute(query, (UUID))
             prefs = cursor.fetchall()
             prefs = prefs[0]["prefs"].lower().split()
             print("Prefs: ", prefs)
 
             # Count the number of shared tags
             matching = []
-            for event in publicEvents:
-                event["tags"] = event["tags"].lower()
-                for p in prefs:
-                    if p in event["tags"]:
-                        matching.append(event)
-                        break
+            print(len(prefs))
+            if (len(prefs) == 0):
+                matching = publicEvents
+            else:
+                for event in publicEvents:
+                    event["tags"] = event["tags"].lower()
+                    for p in prefs:
+                        if p in event["tags"]:
+                            matching.append(event)
+                            break
 
             return jsonify({
                 "groupEvents": groupEvents,

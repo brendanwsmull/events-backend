@@ -580,11 +580,11 @@ def create_app(test_config=None):
 
             # Count the number of shared tags
             matching = []
-            print(len(prefs))
             if (len(prefs) == 0):
                 matching = publicEvents
             else:
                 for event in publicEvents:
+                    print(event["tags"])
                     event["tags"] = event["tags"].lower()
                     for p in prefs:
                         if p in event["tags"]:

@@ -636,4 +636,39 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
+    @app.route('/signUp', methods=["GET"])
+    def signUp():
+        UEID = request.args.get("UEID")
+        UUID = request.args.get("UUID")
+        cap = int(request.args.get("cap"))
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            checkUserQ = "SELECT * FROM signedUp WHERE UUID = %s AND UEID = %s"
+            cursor.execute(checkUserQ, (UUID, UEID))
+            if cursor.fetchone():
+                return jsonify({"error": "User already signed up for this event"}), 400
+
+            countQ = "SELECT COUNT(*) FROM signedUp WHERE UEID = %s"
+            cursor.execute(countQ, (UEID,))
+            count = cursor.fetchone()[0]
+            if cap > 0 and count >= cap:
+                return jsonify({"error": "Event is at full capacity"}), 400
+
+            insertQ = "INSERT INTO signedUp (UUID, UEID) VALUES (%s, %s)"
+            cursor.execute(insertQ, (UUID, UEID))
+            conn.commit()
+
+            return jsonify({"status": "success"}), 200
+
+        except Exception as e:
+            print("Error when signing up:", e)
+            return jsonify({'error': str(e)}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+
     return app

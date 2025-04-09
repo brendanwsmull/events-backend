@@ -638,8 +638,8 @@ def create_app(test_config=None):
 
     @app.route('/signUp', methods=["GET"])
     def signUp():
-        UEID = request.args.get("UEID")
-        UUID = request.args.get("UUID")
+        UEID = int(request.args.get("UEID"))
+        UUID = int(request.args.get("UUID"))
         cap = int(request.args.get("cap"))
 
         try:
@@ -653,7 +653,8 @@ def create_app(test_config=None):
 
             countQ = "SELECT COUNT(*) FROM signedUp WHERE UEID = %s"
             cursor.execute(countQ, (UEID,))
-            count = cursor.fetchone()[0]
+            row = cursor.fetchone()
+            count = row['COUNT(*)']
             if cap > 0 and count >= cap:
                 return jsonify({"error": "Event is at full capacity"}), 400
 

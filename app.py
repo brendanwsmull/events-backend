@@ -63,6 +63,7 @@ def create_app(test_config=None):
     def login():
         username = request.args.get('username')
         password = request.args.get('password')
+        print(username + " " + password)
 
         try:
             conn = connect_to_db()
@@ -554,13 +555,18 @@ def create_app(test_config=None):
                 FROM events e
                 JOIN users u ON e.eventHost = u.UUID
                 WHERE e.eventHost IN (
-                    SELECT groupID
-                    FROM userGroups
-                    WHERE userID = %s AND pending = FALSE
+                    SELECT ug.groupID
+                    FROM userGroups ug
+                    WHERE ug.userID = %s AND ug.pending = FALSE
+                    UNION
+                    SELECT u.parentAccount
+                    FROM users u
+                    JOIN userGroups ug ON ug.groupID = u.UUID
+                    WHERE ug.userID = %s AND ug.pending = FALSE AND u.parentAccount IS NOT NULL
                 )
                 AND e.date >= NOW()
             """
-            cursor.execute(groupQ, (UUID))
+            cursor.execute(groupQ, (UUID, UUID))
             groupEvents = cursor.fetchall()
 
             # Get list of public events within distance
@@ -596,6 +602,7 @@ def create_app(test_config=None):
                 "eventFeed": matching
             }), 200
         except Exception as e:
+            print(e)
             return jsonify({'error': str(e)}), 500
         finally:
             cursor.close()

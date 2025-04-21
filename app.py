@@ -649,7 +649,7 @@ def create_app(test_config=None):
             checkUserQ = "SELECT * FROM signedUp WHERE UUID = %s AND UEID = %s"
             cursor.execute(checkUserQ, (UUID, UEID))
             if cursor.fetchone():
-                return jsonify({"error": "User already signed up for this event"}), 400
+                return jsonify({"error": "User already signed up for this event"}), 403
 
             countQ = "SELECT COUNT(*) FROM signedUp WHERE UEID = %s"
             cursor.execute(countQ, (UEID,))

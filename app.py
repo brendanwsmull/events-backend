@@ -679,4 +679,29 @@ def create_app(test_config=None):
             cursor.close()
             conn.close()
 
+    @app.route('/getSingleEvent', methods=["GET"])
+    def getSingleEvent():
+        UEID = request.args.get("UEID")
+
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+
+            q = "select * from events where UEID = %s"
+            cursor.execute(q, (UEID))
+            res = cursor.fetchone()
+
+            if res:
+                return jsonify({"status": "event found", "event": res}), 200
+            else:
+                return jsonify({"status": "no event found"}), 400
+
+        except Exception as e:
+            print("Error when getting event:", e)
+            return jsonify({'error': str(e)}), 500
+
+        finally:
+            cursor.close()
+            conn.close()
+
     return app
